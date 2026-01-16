@@ -3,12 +3,12 @@
     "step": {
       "user": {
         "title": "Select shutters to configure",
-        "description": "Select the shutters you want to add position tracking to. {count} shutter(s) available.\n\n⚠️ **Warning:** Make sure the selected shutters have no obstruction to their opening and closing before starting calibration.",
+        "description": "Select the shutters you want to add position tracking to.\n\n⚠️ **Warning:** Make sure the selected shutters have no obstruction to their opening and closing before starting calibration.",
         "data": {
           "covers": "Shutters"
         }
       },
-      "calibrate_pre_open": {
+      "pre_open": {
         "title": "{cover_name}",
         "description": "Opening shutter for pre-calibration..."
       },
@@ -32,7 +32,8 @@
       "calibrate_open": "Opening shutter for calibration..."
     },
     "error": {
-      "no_cover_selected": "Please select at least one shutter"
+      "no_cover_selected": "Please select at least one cover",
+      "no_shutter_selected": "Please select at least one shutter (device_class: shutter)"
     },
     "abort": {
       "no_covers_found": "No shutters found. Make sure you have cover entities with device_class 'shutter'."
