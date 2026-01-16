@@ -13,11 +13,10 @@ from homeassistant.components.cover import (
     DOMAIN as COVER_DOMAIN,
     CoverDeviceClass,
 )
+from homeassistant.components.cover import ATTR_CURRENT_POSITION
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_FRIENDLY_NAME,
-    STATE_OPEN,
-    STATE_CLOSED,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
@@ -99,16 +98,18 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get current entity ID."""
         return self._selected_covers[self._current_cover_index]
 
-    async def _wait_for_state(self, entity_id: str, target_state: str) -> bool:
-        """Wait for entity to reach target state."""
-        state_reached = asyncio.Event()
+    async def _wait_for_position(self, entity_id: str, target_position: int) -> bool:
+        """Wait for entity to reach target position (0=closed, 100=open)."""
+        position_reached = asyncio.Event()
 
         @callback
         def state_listener(event):
             new_state = event.data.get("new_state")
-            _LOGGER.debug("State change for %s: %s", entity_id, new_state.state if new_state else None)
-            if new_state and new_state.state == target_state:
-                state_reached.set()
+            if new_state:
+                position = new_state.attributes.get(ATTR_CURRENT_POSITION)
+                _LOGGER.debug("Position change for %s: %s", entity_id, position)
+                if position == target_position:
+                    position_reached.set()
 
         # Register listener FIRST to avoid race condition
         unsub = async_track_state_change_event(
@@ -116,16 +117,17 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         try:
-            # Then check current state
+            # Then check current position
             current = self.hass.states.get(entity_id)
-            _LOGGER.debug("Current state for %s: %s (waiting for %s)", entity_id, current.state if current else None, target_state)
-            if current and current.state == target_state:
+            current_position = current.attributes.get(ATTR_CURRENT_POSITION) if current else None
+            _LOGGER.debug("Current position for %s: %s (waiting for %s)", entity_id, current_position, target_position)
+            if current_position == target_position:
                 return True
 
-            await asyncio.wait_for(state_reached.wait(), timeout=DEFAULT_TIMEOUT)
+            await asyncio.wait_for(position_reached.wait(), timeout=DEFAULT_TIMEOUT)
             return True
         except asyncio.TimeoutError:
-            _LOGGER.warning("Timeout waiting for %s to reach %s", entity_id, target_state)
+            _LOGGER.warning("Timeout waiting for %s to reach position %s", entity_id, target_position)
             return False
         finally:
             unsub()
@@ -139,33 +141,34 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         _LOGGER.info("Starting calibration for %s (%s)", cover_name, entity_id)
 
-        # 1. Pre-open: ensure cover is fully open
+        # 1. Pre-open: ensure cover is fully open (position 100)
         current = self.hass.states.get(entity_id)
-        _LOGGER.info("Initial state: %s", current.state if current else None)
-        if not current or current.state != STATE_OPEN:
+        current_position = current.attributes.get(ATTR_CURRENT_POSITION) if current else None
+        _LOGGER.info("Initial position: %s", current_position)
+        if current_position != 100:
             _LOGGER.info("Pre-opening cover...")
             await self.hass.services.async_call(
                 COVER_DOMAIN, "open_cover", {"entity_id": entity_id}, blocking=True
             )
-            await self._wait_for_state(entity_id, STATE_OPEN)
+            await self._wait_for_position(entity_id, 100)
 
-        # 2. Close calibration
+        # 2. Close calibration (wait for position 0)
         _LOGGER.info("Starting close calibration...")
         start_time = time.monotonic()
         await self.hass.services.async_call(
             COVER_DOMAIN, "close_cover", {"entity_id": entity_id}, blocking=True
         )
-        success = await self._wait_for_state(entity_id, STATE_CLOSED)
+        success = await self._wait_for_position(entity_id, 0)
         self._time_to_close = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
         _LOGGER.info("Close time: %s (success: %s)", self._time_to_close, success)
 
-        # 3. Open calibration
+        # 3. Open calibration (wait for position 100)
         _LOGGER.info("Starting open calibration...")
         start_time = time.monotonic()
         await self.hass.services.async_call(
             COVER_DOMAIN, "open_cover", {"entity_id": entity_id}, blocking=True
         )
-        success = await self._wait_for_state(entity_id, STATE_OPEN)
+        success = await self._wait_for_position(entity_id, 100)
         self._time_to_open = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
         _LOGGER.info("Open time: %s (success: %s)", self._time_to_open, success)
 
