@@ -9,27 +9,23 @@
         }
       },
       "pre_open": {
-        "title": "{cover_name}",
-        "description": "Opening shutter for pre-calibration..."
+        "title": "Pre-calibration"
       },
       "calibrate_close": {
-        "title": "{cover_name}",
-        "description": "Closing shutter for calibration..."
+        "title": "Close calibration"
       },
       "calibrate_open": {
-        "title": "{cover_name}",
-        "description": "Opening shutter for calibration..."
+        "title": "Open calibration"
       },
       "calibrate_result": {
-        "title": "{cover_name}",
-        "description": "Calibration results:\n\n- Close time: **{time_to_close}s**\n- Open time: **{time_to_open}s**\n\nShutter {current} of {total}",
-        "data": {}
+        "title": "Calibration results",
+        "description": "**{cover_name}**\n\n- Close time: **{time_to_close}s**\n- Open time: **{time_to_open}s**\n\nShutter {current} of {total}"
       }
     },
     "progress": {
-      "pre_open": "Opening shutter for pre-calibration...",
-      "calibrate_close": "Closing shutter for calibration...",
-      "calibrate_open": "Opening shutter for calibration..."
+      "pre_open": "Opening {cover_name}...",
+      "calibrate_close": "Closing {cover_name}...",
+      "calibrate_open": "Opening {cover_name}..."
     },
     "error": {
       "no_cover_selected": "Please select at least one cover",

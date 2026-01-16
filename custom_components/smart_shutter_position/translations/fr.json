@@ -9,27 +9,23 @@
         }
       },
       "pre_open": {
-        "title": "{cover_name}",
-        "description": "Ouverture du volet pré-calibration..."
+        "title": "Pré-calibration"
       },
       "calibrate_close": {
-        "title": "{cover_name}",
-        "description": "Fermeture du volet pour calibration..."
+        "title": "Calibration fermeture"
       },
       "calibrate_open": {
-        "title": "{cover_name}",
-        "description": "Ouverture du volet pour calibration..."
+        "title": "Calibration ouverture"
       },
       "calibrate_result": {
-        "title": "{cover_name}",
-        "description": "Résultats de la calibration :\n\n- Temps de fermeture : **{time_to_close}s**\n- Temps d'ouverture : **{time_to_open}s**\n\nVolet {current} sur {total}",
-        "data": {}
+        "title": "Résultats de la calibration",
+        "description": "**{cover_name}**\n\n- Temps de fermeture : **{time_to_close}s**\n- Temps d'ouverture : **{time_to_open}s**\n\nVolet {current} sur {total}"
       }
     },
     "progress": {
-      "pre_open": "Ouverture du volet pré-calibration...",
-      "calibrate_close": "Fermeture du volet pour calibration...",
-      "calibrate_open": "Ouverture du volet pour calibration..."
+      "pre_open": "Ouverture de {cover_name}...",
+      "calibrate_close": "Fermeture de {cover_name}...",
+      "calibrate_open": "Ouverture de {cover_name}..."
     },
     "error": {
       "no_cover_selected": "Veuillez sélectionner au moins un volet",
