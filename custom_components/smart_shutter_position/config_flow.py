@@ -106,18 +106,22 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         @callback
         def state_listener(event):
             new_state = event.data.get("new_state")
+            _LOGGER.debug("State change for %s: %s", entity_id, new_state.state if new_state else None)
             if new_state and new_state.state == target_state:
                 state_reached.set()
 
-        current = self.hass.states.get(entity_id)
-        if current and current.state == target_state:
-            return True
-
+        # Register listener FIRST to avoid race condition
         unsub = async_track_state_change_event(
             self.hass, [entity_id], state_listener
         )
 
         try:
+            # Then check current state
+            current = self.hass.states.get(entity_id)
+            _LOGGER.debug("Current state for %s: %s (waiting for %s)", entity_id, current.state if current else None, target_state)
+            if current and current.state == target_state:
+                return True
+
             await asyncio.wait_for(state_reached.wait(), timeout=DEFAULT_TIMEOUT)
             return True
         except asyncio.TimeoutError:
@@ -133,29 +137,37 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entity_id = self._get_current_entity_id()
         cover_name = self._get_current_cover_name()
 
+        _LOGGER.info("Starting calibration for %s (%s)", cover_name, entity_id)
+
         # 1. Pre-open: ensure cover is fully open
         current = self.hass.states.get(entity_id)
+        _LOGGER.info("Initial state: %s", current.state if current else None)
         if not current or current.state != STATE_OPEN:
+            _LOGGER.info("Pre-opening cover...")
             await self.hass.services.async_call(
-                COVER_DOMAIN, "open_cover", {"entity_id": entity_id}
+                COVER_DOMAIN, "open_cover", {"entity_id": entity_id}, blocking=True
             )
             await self._wait_for_state(entity_id, STATE_OPEN)
 
         # 2. Close calibration
+        _LOGGER.info("Starting close calibration...")
         start_time = time.monotonic()
         await self.hass.services.async_call(
-            COVER_DOMAIN, "close_cover", {"entity_id": entity_id}
+            COVER_DOMAIN, "close_cover", {"entity_id": entity_id}, blocking=True
         )
         success = await self._wait_for_state(entity_id, STATE_CLOSED)
         self._time_to_close = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
+        _LOGGER.info("Close time: %s (success: %s)", self._time_to_close, success)
 
         # 3. Open calibration
+        _LOGGER.info("Starting open calibration...")
         start_time = time.monotonic()
         await self.hass.services.async_call(
-            COVER_DOMAIN, "open_cover", {"entity_id": entity_id}
+            COVER_DOMAIN, "open_cover", {"entity_id": entity_id}, blocking=True
         )
         success = await self._wait_for_state(entity_id, STATE_OPEN)
         self._time_to_open = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
+        _LOGGER.info("Open time: %s (success: %s)", self._time_to_open, success)
 
         # Show results
         return await self.async_step_calibrate_result()
