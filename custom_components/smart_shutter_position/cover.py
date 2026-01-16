@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 from homeassistant.components.cover import (
+    ATTR_CURRENT_POSITION,
     ATTR_POSITION,
     DOMAIN as COVER_DOMAIN,
     CoverDeviceClass,
@@ -193,10 +194,12 @@ class SmartShutterCover(CoverEntity, RestoreEntity):
         if not new_state:
             return
 
-        if new_state.state == STATE_OPEN:
-            self._finalize_movement(POSITION_OPEN)
-        elif new_state.state == STATE_CLOSED:
+        # Use current_position attribute for reset (0=closed, 100=open)
+        source_position = new_state.attributes.get(ATTR_CURRENT_POSITION)
+        if source_position == 0:
             self._finalize_movement(POSITION_CLOSED)
+        elif source_position == 100:
+            self._finalize_movement(POSITION_OPEN)
 
         self.async_write_ha_state()
 

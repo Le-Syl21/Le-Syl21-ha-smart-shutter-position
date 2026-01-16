@@ -3,14 +3,18 @@
     "step": {
       "user": {
         "title": "Sélectionner les volets à configurer",
-        "description": "Sélectionnez les volets auxquels vous souhaitez ajouter le suivi de position.\n\n⚠️ **Attention :** Assurez-vous que les volets sélectionnés n'ont aucune obstruction à leur ouverture et fermeture avant de lancer la calibration.",
+        "description": "Sélectionnez les volets auxquels vous souhaitez ajouter le suivi de position.\n\n⚠️ **Attention :** Assurez-vous que les volets sélectionnés n'ont aucune obstruction à leur ouverture et fermeture.",
         "data": {
           "covers": "Volets"
         }
       },
-      "calibrate_result": {
-        "title": "Résultats de la calibration",
-        "description": "**{cover_name}**\n\n- Temps de fermeture : **{time_to_close}s**\n- Temps d'ouverture : **{time_to_open}s**\n\nVolet {current} sur {total}"
+      "timing": {
+        "title": "Configuration des temps",
+        "description": "**{cover_name}** ({current}/{total})\n\nEntrez le temps nécessaire pour fermer et ouvrir complètement le volet.",
+        "data": {
+          "time_to_close": "Temps de fermeture",
+          "time_to_open": "Temps d'ouverture"
+        }
       }
     },
     "error": {
@@ -18,7 +22,22 @@
       "no_shutter_selected": "Veuillez sélectionner au moins un volet roulant (device_class: shutter)"
     },
     "abort": {
-      "no_covers_found": "Aucun volet trouvé. Assurez-vous d'avoir des entités cover avec device_class 'shutter'."
+      "no_covers_found": "Aucun volet trouvé."
+    }
+  },
+  "options": {
+    "step": {
+      "edit_cover": {
+        "title": "Modifier les temps",
+        "description": "**{cover_name}** ({current}/{total})\n\nModifiez le temps nécessaire pour fermer et ouvrir complètement le volet.",
+        "data": {
+          "time_to_close": "Temps de fermeture",
+          "time_to_open": "Temps d'ouverture"
+        }
+      }
+    },
+    "abort": {
+      "no_covers": "Aucun volet configuré."
     }
   }
 }

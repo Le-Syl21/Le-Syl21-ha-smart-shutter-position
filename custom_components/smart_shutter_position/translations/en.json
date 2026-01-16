@@ -3,14 +3,18 @@
     "step": {
       "user": {
         "title": "Select shutters to configure",
-        "description": "Select the shutters you want to add position tracking to.\n\n⚠️ **Warning:** Make sure the selected shutters have no obstruction to their opening and closing before starting calibration.",
+        "description": "Select the shutters you want to add position tracking to.\n\n⚠️ **Warning:** Make sure the selected shutters have no obstruction to their opening and closing.",
         "data": {
           "covers": "Shutters"
         }
       },
-      "calibrate_result": {
-        "title": "Calibration results",
-        "description": "**{cover_name}**\n\n- Close time: **{time_to_close}s**\n- Open time: **{time_to_open}s**\n\nShutter {current} of {total}"
+      "timing": {
+        "title": "Timing configuration",
+        "description": "**{cover_name}** ({current}/{total})\n\nEnter the time it takes for the shutter to fully close and open.",
+        "data": {
+          "time_to_close": "Close time",
+          "time_to_open": "Open time"
+        }
       }
     },
     "error": {
@@ -18,7 +22,22 @@
       "no_shutter_selected": "Please select at least one shutter (device_class: shutter)"
     },
     "abort": {
-      "no_covers_found": "No shutters found. Make sure you have cover entities with device_class 'shutter'."
+      "no_covers_found": "No shutters found."
+    }
+  },
+  "options": {
+    "step": {
+      "edit_cover": {
+        "title": "Edit timing",
+        "description": "**{cover_name}** ({current}/{total})\n\nUpdate the time it takes for the shutter to fully close and open.",
+        "data": {
+          "time_to_close": "Close time",
+          "time_to_open": "Open time"
+        }
+      }
+    },
+    "abort": {
+      "no_covers": "No covers configured."
     }
   }
 }

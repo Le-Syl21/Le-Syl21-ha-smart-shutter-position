@@ -1,9 +1,7 @@
 """Config flow for Smart Shutter Position integration."""
 from __future__ import annotations
 
-import asyncio
 import logging
-import time
 from typing import Any
 
 import voluptuous as vol
@@ -13,14 +11,18 @@ from homeassistant.components.cover import (
     DOMAIN as COVER_DOMAIN,
     CoverDeviceClass,
 )
-from homeassistant.components.cover import ATTR_CURRENT_POSITION
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_FRIENDLY_NAME,
 )
 from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
 from .const import (
     DOMAIN,
@@ -28,7 +30,6 @@ from .const import (
     CONF_SOURCE_ENTITY,
     CONF_TIME_TO_OPEN,
     CONF_TIME_TO_CLOSE,
-    DEFAULT_TIMEOUT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,8 +45,6 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._selected_covers: list[str] = []
         self._current_cover_index: int = 0
         self._calibration_data: dict[str, dict] = {}
-        self._time_to_close: float = 0
-        self._time_to_open: float = 0
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -71,7 +70,7 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     self._selected_covers = filtered
                     self._current_cover_index = 0
-                    return await self.async_step_calibrate()
+                    return await self.async_step_timing()
 
         return self.async_show_form(
             step_id="user",
@@ -98,103 +97,24 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get current entity ID."""
         return self._selected_covers[self._current_cover_index]
 
-    async def _wait_for_position(self, entity_id: str, target_position: int) -> bool:
-        """Wait for entity to reach target position (0=closed, 100=open)."""
-        position_reached = asyncio.Event()
-
-        @callback
-        def state_listener(event):
-            new_state = event.data.get("new_state")
-            if new_state:
-                position = new_state.attributes.get(ATTR_CURRENT_POSITION)
-                _LOGGER.debug("Position change for %s: %s", entity_id, position)
-                if position == target_position:
-                    position_reached.set()
-
-        # Register listener FIRST to avoid race condition
-        unsub = async_track_state_change_event(
-            self.hass, [entity_id], state_listener
-        )
-
-        try:
-            # Then check current position
-            current = self.hass.states.get(entity_id)
-            current_position = current.attributes.get(ATTR_CURRENT_POSITION) if current else None
-            _LOGGER.debug("Current position for %s: %s (waiting for %s)", entity_id, current_position, target_position)
-            if current_position == target_position:
-                return True
-
-            await asyncio.wait_for(position_reached.wait(), timeout=DEFAULT_TIMEOUT)
-            return True
-        except asyncio.TimeoutError:
-            _LOGGER.warning("Timeout waiting for %s to reach position %s", entity_id, target_position)
-            return False
-        finally:
-            unsub()
-
-    async def async_step_calibrate(
+    async def async_step_timing(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Run full calibration for current cover."""
+        """Enter timing for current cover."""
         entity_id = self._get_current_entity_id()
         cover_name = self._get_current_cover_name()
-
-        _LOGGER.info("Starting calibration for %s (%s)", cover_name, entity_id)
-
-        # 1. Pre-open: ensure cover is fully open (position 100)
-        current = self.hass.states.get(entity_id)
-        current_position = current.attributes.get(ATTR_CURRENT_POSITION) if current else None
-        _LOGGER.info("Initial position: %s", current_position)
-        if current_position != 100:
-            _LOGGER.info("Pre-opening cover...")
-            await self.hass.services.async_call(
-                COVER_DOMAIN, "open_cover", {"entity_id": entity_id}, blocking=True
-            )
-            await self._wait_for_position(entity_id, 100)
-
-        # 2. Close calibration (wait for position 0)
-        _LOGGER.info("Starting close calibration...")
-        start_time = time.monotonic()
-        await self.hass.services.async_call(
-            COVER_DOMAIN, "close_cover", {"entity_id": entity_id}, blocking=True
-        )
-        success = await self._wait_for_position(entity_id, 0)
-        self._time_to_close = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
-        _LOGGER.info("Close time: %s (success: %s)", self._time_to_close, success)
-
-        # 3. Open calibration (wait for position 100)
-        _LOGGER.info("Starting open calibration...")
-        start_time = time.monotonic()
-        await self.hass.services.async_call(
-            COVER_DOMAIN, "open_cover", {"entity_id": entity_id}, blocking=True
-        )
-        success = await self._wait_for_position(entity_id, 100)
-        self._time_to_open = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
-        _LOGGER.info("Open time: %s (success: %s)", self._time_to_open, success)
-
-        # Show results
-        return await self.async_step_calibrate_result()
-
-    async def async_step_calibrate_result(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Show calibration results and validate."""
-        cover_name = self._get_current_cover_name()
-        entity_id = self._get_current_entity_id()
 
         if user_input is not None:
             self._calibration_data[entity_id] = {
                 CONF_SOURCE_ENTITY: entity_id,
-                CONF_TIME_TO_CLOSE: self._time_to_close,
-                CONF_TIME_TO_OPEN: self._time_to_open,
+                CONF_TIME_TO_CLOSE: user_input[CONF_TIME_TO_CLOSE],
+                CONF_TIME_TO_OPEN: user_input[CONF_TIME_TO_OPEN],
             }
 
             self._current_cover_index += 1
 
             if self._current_cover_index < len(self._selected_covers):
-                self._time_to_close = 0
-                self._time_to_open = 0
-                return await self.async_step_calibrate()
+                return await self.async_step_timing()
             else:
                 return self.async_create_entry(
                     title="Smart Shutter Position",
@@ -202,12 +122,120 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         return self.async_show_form(
-            step_id="calibrate_result",
+            step_id="timing",
+            data_schema=vol.Schema({
+                vol.Required(CONF_TIME_TO_CLOSE, default=30): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=300,
+                        step=0.5,
+                        unit_of_measurement="s",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(CONF_TIME_TO_OPEN, default=30): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=300,
+                        step=0.5,
+                        unit_of_measurement="s",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+            }),
             description_placeholders={
                 "cover_name": cover_name,
-                "time_to_close": str(self._time_to_close),
-                "time_to_open": str(self._time_to_open),
                 "current": str(self._current_cover_index + 1),
                 "total": str(len(self._selected_covers)),
+            },
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
+        """Get the options flow."""
+        return SmartShutterOptionsFlow(config_entry)
+
+
+class SmartShutterOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self._config_entry = config_entry
+        self._covers_data = dict(config_entry.data.get(CONF_COVERS, {}))
+        self._cover_ids = list(self._covers_data.keys())
+        self._current_index = 0
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Manage options."""
+        if not self._cover_ids:
+            return self.async_abort(reason="no_covers")
+
+        return await self.async_step_edit_cover()
+
+    async def async_step_edit_cover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Edit timing for a cover."""
+        entity_id = self._cover_ids[self._current_index]
+        cover_data = self._covers_data[entity_id]
+
+        state = self.hass.states.get(entity_id)
+        cover_name = state.attributes.get(ATTR_FRIENDLY_NAME, entity_id) if state else entity_id
+
+        if user_input is not None:
+            self._covers_data[entity_id] = {
+                CONF_SOURCE_ENTITY: entity_id,
+                CONF_TIME_TO_CLOSE: user_input[CONF_TIME_TO_CLOSE],
+                CONF_TIME_TO_OPEN: user_input[CONF_TIME_TO_OPEN],
+            }
+
+            self._current_index += 1
+
+            if self._current_index < len(self._cover_ids):
+                return await self.async_step_edit_cover()
+            else:
+                # Update config entry data
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry,
+                    data={CONF_COVERS: self._covers_data},
+                )
+                return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="edit_cover",
+            data_schema=vol.Schema({
+                vol.Required(
+                    CONF_TIME_TO_CLOSE,
+                    default=cover_data.get(CONF_TIME_TO_CLOSE, 30),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=300,
+                        step=0.5,
+                        unit_of_measurement="s",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(
+                    CONF_TIME_TO_OPEN,
+                    default=cover_data.get(CONF_TIME_TO_OPEN, 30),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=300,
+                        step=0.5,
+                        unit_of_measurement="s",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+            }),
+            description_placeholders={
+                "cover_name": cover_name,
+                "current": str(self._current_index + 1),
+                "total": str(len(self._cover_ids)),
             },
         )
