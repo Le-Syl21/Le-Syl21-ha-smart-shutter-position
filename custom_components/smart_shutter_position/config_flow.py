@@ -19,7 +19,7 @@ from homeassistant.const import (
     STATE_OPEN,
     STATE_CLOSED,
 )
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
 
@@ -47,7 +47,6 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._calibration_data: dict[str, dict] = {}
         self._time_to_close: float = 0
         self._time_to_open: float = 0
-        self._task: asyncio.Task | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -60,7 +59,6 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not selected:
                 errors["base"] = "no_cover_selected"
             else:
-                # Filter to keep only shutter device_class
                 filtered = []
                 for entity_id in selected:
                     state = self.hass.states.get(entity_id)
@@ -74,7 +72,7 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     self._selected_covers = filtered
                     self._current_cover_index = 0
-                    return await self.async_step_pre_open()
+                    return await self.async_step_calibrate()
 
         return self.async_show_form(
             step_id="user",
@@ -111,7 +109,6 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if new_state and new_state.state == target_state:
                 state_reached.set()
 
-        # Check current state first
         current = self.hass.states.get(entity_id)
         if current and current.state == target_state:
             return True
@@ -129,121 +126,38 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         finally:
             unsub()
 
-    async def async_step_pre_open(
+    async def async_step_calibrate(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Pre-calibration: open the cover first."""
+        """Run full calibration for current cover."""
         entity_id = self._get_current_entity_id()
         cover_name = self._get_current_cover_name()
 
-        if not self._task:
-            self._task = self.hass.async_create_task(
-                self._do_pre_open(entity_id)
-            )
-
-        return self.async_show_progress(
-            step_id="pre_open",
-            progress_action="pre_open",
-            description_placeholders={"cover_name": cover_name},
-            progress_task=self._task,
-        )
-
-    async def _do_pre_open(self, entity_id: str) -> None:
-        """Execute pre-open."""
+        # 1. Pre-open: ensure cover is fully open
         current = self.hass.states.get(entity_id)
-        if current and current.state == STATE_OPEN:
-            return
-
-        await self.hass.services.async_call(
-            COVER_DOMAIN, "open_cover", {"entity_id": entity_id}
-        )
-        await self._wait_for_state(entity_id, STATE_OPEN)
-
-    async def async_step_pre_open_done(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Pre-open completed."""
-        self._task = None
-        return await self.async_step_calibrate_close()
-
-    async def async_step_calibrate_close(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Calibrate close time."""
-        entity_id = self._get_current_entity_id()
-        cover_name = self._get_current_cover_name()
-
-        if not self._task:
-            self._task = self.hass.async_create_task(
-                self._do_calibrate_close(entity_id)
+        if not current or current.state != STATE_OPEN:
+            await self.hass.services.async_call(
+                COVER_DOMAIN, "open_cover", {"entity_id": entity_id}
             )
+            await self._wait_for_state(entity_id, STATE_OPEN)
 
-        return self.async_show_progress(
-            step_id="calibrate_close",
-            progress_action="calibrate_close",
-            description_placeholders={"cover_name": cover_name},
-            progress_task=self._task,
-        )
-
-    async def _do_calibrate_close(self, entity_id: str) -> None:
-        """Execute close calibration."""
+        # 2. Close calibration
         start_time = time.monotonic()
-
         await self.hass.services.async_call(
             COVER_DOMAIN, "close_cover", {"entity_id": entity_id}
         )
-
         success = await self._wait_for_state(entity_id, STATE_CLOSED)
-        if success:
-            self._time_to_close = round(time.monotonic() - start_time, 1)
-        else:
-            self._time_to_close = DEFAULT_TIMEOUT
+        self._time_to_close = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
 
-    async def async_step_calibrate_close_done(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Close calibration completed."""
-        self._task = None
-        return await self.async_step_calibrate_open()
-
-    async def async_step_calibrate_open(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Calibrate open time."""
-        entity_id = self._get_current_entity_id()
-        cover_name = self._get_current_cover_name()
-
-        if not self._task:
-            self._task = self.hass.async_create_task(
-                self._do_calibrate_open(entity_id)
-            )
-
-        return self.async_show_progress(
-            step_id="calibrate_open",
-            progress_action="calibrate_open",
-            description_placeholders={"cover_name": cover_name},
-            progress_task=self._task,
-        )
-
-    async def _do_calibrate_open(self, entity_id: str) -> None:
-        """Execute open calibration."""
+        # 3. Open calibration
         start_time = time.monotonic()
-
         await self.hass.services.async_call(
             COVER_DOMAIN, "open_cover", {"entity_id": entity_id}
         )
-
         success = await self._wait_for_state(entity_id, STATE_OPEN)
-        if success:
-            self._time_to_open = round(time.monotonic() - start_time, 1)
-        else:
-            self._time_to_open = DEFAULT_TIMEOUT
+        self._time_to_open = round(time.monotonic() - start_time, 1) if success else DEFAULT_TIMEOUT
 
-    async def async_step_calibrate_open_done(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Open calibration completed."""
-        self._task = None
+        # Show results
         return await self.async_step_calibrate_result()
 
     async def async_step_calibrate_result(
@@ -265,7 +179,7 @@ class SmartShutterPositionConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if self._current_cover_index < len(self._selected_covers):
                 self._time_to_close = 0
                 self._time_to_open = 0
-                return await self.async_step_pre_open()
+                return await self.async_step_calibrate()
             else:
                 return self.async_create_entry(
                     title="Smart Shutter Position",
