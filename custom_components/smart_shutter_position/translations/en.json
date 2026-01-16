@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Select shutters to configure",
-        "description": "Select the shutters you want to add position tracking to. {count} shutter(s) available.",
+        "description": "Select the shutters you want to add position tracking to. {count} shutter(s) available.\n\n⚠️ **Warning:** Make sure the selected shutters have no obstruction to their opening and closing before starting calibration.",
         "data": {
           "covers": "Shutters"
         }

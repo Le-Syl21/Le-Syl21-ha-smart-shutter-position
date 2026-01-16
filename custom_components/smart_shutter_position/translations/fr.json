@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Sélectionner les volets à configurer",
-        "description": "Sélectionnez les volets auxquels vous souhaitez ajouter le suivi de position. {count} volet(s) disponible(s).",
+        "description": "Sélectionnez les volets auxquels vous souhaitez ajouter le suivi de position. {count} volet(s) disponible(s).\n\n⚠️ **Attention :** Assurez-vous que les volets sélectionnés n'ont aucune obstruction à leur ouverture et fermeture avant de lancer la calibration.",
         "data": {
           "covers": "Volets"
         }
