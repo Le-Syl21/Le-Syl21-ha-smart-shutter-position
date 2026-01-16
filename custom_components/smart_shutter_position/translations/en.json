@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select shutters to configure",
+        "description": "Select the shutters you want to add position tracking to. {count} shutter(s) available.",
+        "data": {
+          "covers": "Shutters"
+        }
+      },
+      "calibrate_pre_open": {
+        "title": "{cover_name}",
+        "description": "Opening shutter for pre-calibration..."
+      },
+      "calibrate_close": {
+        "title": "{cover_name}",
+        "description": "Closing shutter for calibration..."
+      },
+      "calibrate_open": {
+        "title": "{cover_name}",
+        "description": "Opening shutter for calibration..."
+      },
+      "calibrate_result": {
+        "title": "{cover_name}",
+        "description": "Calibration results:\n\n- Close time: **{time_to_close}s**\n- Open time: **{time_to_open}s**\n\nShutter {current} of {total}",
+        "data": {}
+      }
+    },
+    "progress": {
+      "pre_open": "Opening shutter for pre-calibration...",
+      "calibrate_close": "Closing shutter for calibration...",
+      "calibrate_open": "Opening shutter for calibration..."
+    },
+    "error": {
+      "no_cover_selected": "Please select at least one shutter"
+    },
+    "abort": {
+      "no_covers_found": "No shutters found. Make sure you have cover entities with device_class 'shutter'."
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sélectionner les volets à configurer",
+        "description": "Sélectionnez les volets auxquels vous souhaitez ajouter le suivi de position. {count} volet(s) disponible(s).",
+        "data": {
+          "covers": "Volets"
+        }
+      },
+      "calibrate_pre_open": {
+        "title": "{cover_name}",
+        "description": "Ouverture du volet pré-calibration..."
+      },
+      "calibrate_close": {
+        "title": "{cover_name}",
+        "description": "Fermeture du volet pour calibration..."
+      },
+      "calibrate_open": {
+        "title": "{cover_name}",
+        "description": "Ouverture du volet pour calibration..."
+      },
+      "calibrate_result": {
+        "title": "{cover_name}",
+        "description": "Résultats de la calibration :\n\n- Temps de fermeture : **{time_to_close}s**\n- Temps d'ouverture : **{time_to_open}s**\n\nVolet {current} sur {total}",
+        "data": {}
+      }
+    },
+    "progress": {
+      "pre_open": "Ouverture du volet pré-calibration...",
+      "calibrate_close": "Fermeture du volet pour calibration...",
+      "calibrate_open": "Ouverture du volet pour calibration..."
+    },
+    "error": {
+      "no_cover_selected": "Veuillez sélectionner au moins un volet"
+    },
+    "abort": {
+      "no_covers_found": "Aucun volet trouvé. Assurez-vous d'avoir des entités cover avec device_class 'shutter'."
+    }
+  }
+}

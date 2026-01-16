@@ -1,0 +1,12 @@
+{
+  "domain": "smart_shutter_position",
+  "name": "Smart Shutter Position",
+  "codeowners": ["@Le-Syl21"],
+  "config_flow": true,
+  "documentation": "https://github.com/Le-Syl21/ha-smart-shutter-position",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Le-Syl21/ha-smart-shutter-position/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
